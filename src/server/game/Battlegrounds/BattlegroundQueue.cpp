@@ -1108,7 +1108,7 @@ bool BattlegroundQueue::CheckSkirmishOrLFGBrawl(uint8 bracketID, bool isSkirmish
 {
     uint32 combinations[6][3] =// healers-tank-dd
     {
-        // skirmish
+        // 5v5
         {1, 1, 3},
 
         // 3v3

@@ -1082,7 +1082,7 @@ void PlayerBotMgr::AllPlayerBotRandomLogin(const char* name)
             if (pInfo->characters.size() <= 0)
                 continue;
 
-            if (name != nullptr)
+            if (name[0] != '\0')
             {
                 for (auto i = 0; i < pInfo->characters.size(); ++i)
                 {
@@ -1158,15 +1158,14 @@ bool PlayerBotMgr::PlayerBotLogout(uint32 account)
         if (!pBot || !pBot->IsPlayerBot() || !pBot->IsSettingFinish())
             return false;
         PlayerBotSession* pBotSession = dynamic_cast<PlayerBotSession*>(pSession);
-        if (pBotSession && pBotSession->HasSchedules())
-            return false;
-        //if (pBot->InBattlegroundQueue() || pBot->InBattleground())
-        //	return false;
-        Group* pGroup = pBot->GetGroup();
-        if (pGroup)
-            return false;
-        pSession->LogoutPlayer(false, "bot");
-        return true;
+        if (pBotSession)
+        {
+            if (pBotSession->HasSchedules())
+                pBotSession->ClearAllSchedule();
+
+            pSession->LogoutPlayer(false, "bot");
+            return true;
+        }
     }
     return false;
 }
@@ -1928,22 +1927,6 @@ bool PlayerBotMgr::ChangePlayerBotSetting(uint32 account, uint32 minLV, uint32 m
 
 void PlayerBotMgr::AddNewPlayerBotToBG(TeamId team, uint32 minLV, uint32 maxLV, BattlegroundTypeId bgTypeID)
 {
-    int32 isok = m_MaxOnlineBot;
-    if (isok == 0)
-        return;
-
-    int32 allianceCount = (int32)sPlayerBotMgr->GetOnlineBotCount2(TEAM_ALLIANCE, true);
-    int32 hordeCount = (int32)sPlayerBotMgr->GetOnlineBotCount2(TEAM_HORDE, true);
-    if (allianceCount + hordeCount >= m_MaxOnlineBot)
-        return;
-
-    int32 isoka = sConfigMgr->GetIntDefault("pbota", 20);
-    int32 isokh = sConfigMgr->GetIntDefault("pboth", 20);
-    if (allianceCount >= isoka && team == TeamId::TEAM_ALLIANCE)
-        return;
-    if (hordeCount >= isokh  && team == TeamId::TEAM_HORDE)
-        return;
-
     const SessionMap& allSession = sWorld->GetAllSessions();
     for (SessionMap::const_iterator itSession = allSession.begin(); itSession != allSession.end(); itSession++)
     {
@@ -2187,21 +2170,6 @@ void PlayerBotMgr::AddNewPlayerBotToBG(TeamId team, uint32 minLV, uint32 maxLV, 
 
 void PlayerBotMgr::AddNewPlayerBotToAA(TeamId team, BattlegroundTypeId bgTypeID, uint32 bracketID, uint32 aaType)
 {
-    int32 isok = sConfigMgr->GetIntDefault("pbotall", 1);
-    if (isok==0)
-        return;
-
-    int32 allianceCount = (int32)sPlayerBotMgr->GetOnlineBotCount(TEAM_ALLIANCE, true);
-    int32 hordeCount = (int32)sPlayerBotMgr->GetOnlineBotCount(TEAM_HORDE, true);
-    if (allianceCount + hordeCount >= m_MaxOnlineBot)
-        return;
-
-    int32 isoka = sConfigMgr->GetIntDefault("pbota", 20);
-    int32 isokh = sConfigMgr->GetIntDefault("pboth", 20);
-    if (allianceCount>= isoka && team==TeamId::TEAM_ALLIANCE) return;
-    if (hordeCount>= isokh  && team==TeamId::TEAM_HORDE) return;
-
-
     const SessionMap& allSession = sWorld->GetAllSessions();
     for (SessionMap::const_iterator itSession = allSession.begin(); itSession != allSession.end(); itSession++)
     {
@@ -2250,6 +2218,43 @@ void PlayerBotMgr::AddNewPlayerBotToAA(TeamId team, BattlegroundTypeId bgTypeID,
         if (!pSession || pSession->PlayerLoading() || pSession->HasSchedules() || pSession->IsAccountBotSession())
             continue;
         Player* player = pSession->GetPlayer();
+        if (player)
+        {
+            if (!player || player->isBeingLoaded() || !player->IsInWorld())
+                continue;
+            if (player->InBattleground() || player->InArena() || player->GetMap()->IsDungeon() || player->isUsingLfg())
+                continue;
+            if (player->InBattlegroundQueue())
+                continue;
+            if (!player->IsSettingFinish())
+                continue;
+            if (player->GetTeamId() != team)
+                continue;
+
+            BotGlobleSchedule schedule2(BotGlobleScheduleType::BGSType_Settting, 0);
+            schedule2.parameter1 = 110;
+            schedule2.parameter2 = 110;
+            schedule2.parameter3 = 4;
+            pSession->PushScheduleToQueue(schedule2);
+
+            BotGlobleSchedule schedule3(BotGlobleScheduleType::BGSType_InAAQueue, 0);
+            schedule3.parameter1 = 14;
+            schedule3.parameter2 = 4;
+            pSession->PushScheduleToQueue(schedule3);
+
+            return;
+        }
+    }
+
+    for (uint32 account : rndIDs)
+    {
+        WorldSession* pWorldSession = sWorld->FindSession(account).get();
+        if (!pWorldSession || !pWorldSession->IsBotSession())
+            continue;
+        PlayerBotSession* pSession = dynamic_cast<PlayerBotSession*>(pWorldSession);
+        if (!pSession || pSession->PlayerLoading() || pSession->HasSchedules() || pSession->IsAccountBotSession())
+            continue;
+        Player* player = pSession->GetPlayer();
         if (!player)
         {
             BotGlobleSchedule schedule1(BotGlobleScheduleType::BGSType_Online, 0);
@@ -2257,57 +2262,15 @@ void PlayerBotMgr::AddNewPlayerBotToAA(TeamId team, BattlegroundTypeId bgTypeID,
             pSession->PushScheduleToQueue(schedule1);
 
             BotGlobleSchedule schedule2(BotGlobleScheduleType::BGSType_Settting, 0);
-            schedule2.parameter1 = 80;
-            schedule2.parameter2 = 80;
+            schedule2.parameter1 = 110;
+            schedule2.parameter2 = 110;
             schedule2.parameter3 = 4;
             pSession->PushScheduleToQueue(schedule2);
 
             BotGlobleSchedule schedule3(BotGlobleScheduleType::BGSType_InAAQueue, 0);
-            schedule3.parameter1 = bgTypeID;
-            if (aaType == 2)
-                schedule3.parameter2 = 0;
-            else if (aaType == 3)
-                schedule3.parameter2 = 1;
-            else if (aaType == 5)
-                schedule3.parameter2 = 2;
+            schedule3.parameter1 = 14;
+            schedule3.parameter2 = 4;
             pSession->PushScheduleToQueue(schedule3);
-
-            BotGlobleSchedule schedule4(BotGlobleScheduleType::BGSType_EnterAA, 0);
-            schedule4.parameter1 = bgTypeID;
-            schedule4.parameter2 = bracketID;
-            schedule4.parameter3 = aaType;
-            schedule4.parameter4 = 0;
-            pSession->PushScheduleToQueue(schedule4);
-
-            return;
-        }
-        else if (IsIDLEPlayerBot(player))
-        {
-            if (player->GetTeamId() != team)
-                continue;
-
-            BotGlobleSchedule schedule2(BotGlobleScheduleType::BGSType_Settting, 0);
-            schedule2.parameter1 = 80;
-            schedule2.parameter2 = 80;
-            schedule2.parameter3 = 4;
-            pSession->PushScheduleToQueue(schedule2);
-
-            BotGlobleSchedule schedule3(BotGlobleScheduleType::BGSType_InAAQueue, 0);
-            schedule3.parameter1 = bgTypeID;
-            if (aaType == 2)
-                schedule3.parameter2 = 0;
-            else if (aaType == 3)
-                schedule3.parameter2 = 1;
-            else if (aaType == 5)
-                schedule3.parameter2 = 2;
-            pSession->PushScheduleToQueue(schedule3);
-
-            BotGlobleSchedule schedule4(BotGlobleScheduleType::BGSType_EnterAA, 0);
-            schedule4.parameter1 = bgTypeID;
-            schedule4.parameter2 = bracketID;
-            schedule4.parameter3 = aaType;
-            schedule4.parameter4 = 0;
-            pSession->PushScheduleToQueue(schedule4);
 
             return;
         }
@@ -2781,7 +2744,7 @@ void PlayerBotMgr::QueryNonRatedArenaRequirement()
     Battleground* bg_template = sBattlegroundMgr->GetBattlegroundTemplate(MS::Battlegrounds::BattlegroundTypeId::ArenaAll);
     if (!bg_template)
         return;
-    PVPDifficultyEntry const* bracketEntry = FindBGBracketEntry(bg_template, 80);
+    PVPDifficultyEntry const* bracketEntry = FindBGBracketEntry(bg_template, 110);
     if (!bracketEntry)
         return;
     auto& bgFreeSlotQueues = sBattlegroundMgr->BGFreeSlotQueue;

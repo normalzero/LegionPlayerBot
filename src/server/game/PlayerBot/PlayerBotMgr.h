@@ -316,7 +316,7 @@ public:
 	void LoginFriendBotByPlayer(Player* pPlayer);
 	void LogoutAllGroupPlayerBot(Group* pGroup, bool force);
 
-	void AllPlayerBotRandomLogin(const char* name = nullptr);
+	void AllPlayerBotRandomLogin(const char* name = "");
 	void AllPlayerBotLogout();
 	bool PlayerBotLogout(uint32 account);
 	bool AllPlayerLeaveBG(uint32 account);
@@ -345,6 +345,8 @@ public:
 	std::string GetNameANDClassesText(ObjectGuid& guid);
 	bool CanReadyArenaByArenaTeamID(uint32 arenaTeamId);
     void SetMax(int max) { m_MaxOnlineBot = max; }
+    int32 m_MaxOnlineBot;
+    int32 m_BotOnlineCount;
 
 private:
 	bool ExistClassByRace(uint8 race, uint8 prof);
@@ -383,8 +385,6 @@ private:
 private:
 	uint32 m_BotAccountAmount;
 	uint32 m_LastBotAccountIndex;
-	int32 m_MaxOnlineBot;
-	int32 m_BotOnlineCount;
 	uint32 m_LFGSearchTick;
 	uint32 m_ArenaSearchTick;
 	std::map<uint32, PlayerBotBaseInfo*> m_idPlayerBotBase;

@@ -526,7 +526,7 @@ SpellCastResult BotFieldAI::TryCastSpell(uint32 spellID, Unit* pTarget, bool for
 				me->SetTarget(ObjectGuid::Empty);
 			if (pTarget && pTarget->ToPlayer() && !pTarget->IsPlayerBot() && !pTarget->IsPvP())
 			{
-				WorldPacket opcode;
+				WorldPacket opcode(CMSG_TOGGLE_PVP);
 				WorldPackets::Misc::TogglePvP packet(std::move(opcode));
 				pTarget->ToPlayer()->GetSession()->HandleTogglePvP(packet);
 			}

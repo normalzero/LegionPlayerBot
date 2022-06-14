@@ -855,9 +855,17 @@ void WorldSession::HandleJoinSkirmish(WorldPackets::Battleground::JoinSkirmish& 
         BattlegroundQueue& bgQueue = sBattlegroundMgr->GetBattlegroundQueue(bgQueueTypeId);
         GroupQueueInfo* ginfo = bgQueue.AddGroup(player, nullptr, bgTypeId, bracketEntry, jointype);
 
+        auto queueSlot = player->AddBattlegroundQueueId(bgQueueTypeId);
         WorldPackets::Battleground::BattlefieldStatusQueued battlefieldStatus;
-        sBattlegroundMgr->BuildBattlegroundStatusQueued(&battlefieldStatus, bg, player, player->AddBattlegroundQueueId(bgQueueTypeId), ginfo->JoinTime, bgQueue.GetAverageQueueWaitTime(ginfo, bracketEntry->RangeIndex), jointype, false);
+        sBattlegroundMgr->BuildBattlegroundStatusQueued(&battlefieldStatus, bg, player, queueSlot, ginfo->JoinTime, bgQueue.GetAverageQueueWaitTime(ginfo, bracketEntry->RangeIndex), jointype, false);
         SendPacket(battlefieldStatus.Write());
+
+        if (IsBotSession())
+        {
+            BotGlobleSchedule schedule4(BotGlobleScheduleType::BGSType_EnterAA, player->GetGUID());
+            schedule4.parameter1 = queueSlot;
+            dynamic_cast<PlayerBotSession*>(this)->PushScheduleToQueue(schedule4);
+        }
     }
     else
     {

@@ -258,8 +258,8 @@ public:
 	{
 		static std::vector<ChatCommand> MybotcommandTable =
 		{
-            { "add",           SEC_ADMINISTRATOR,  false, &HandleBotAdd,              ""},
             { "login",			SEC_ADMINISTRATOR,  false, &OnlineCmd,              ""},
+            { "logout",			SEC_ADMINISTRATOR,  false, &OutlineCmd,              ""},
             { "max",			SEC_ADMINISTRATOR,  false, &MaxCmd,              ""},
 		};
 		static std::vector<ChatCommand> commandTable =
@@ -267,23 +267,6 @@ public:
 			{ "bot",             SEC_ADMINISTRATOR,  false, NULL,            "", MybotcommandTable }
 		};
 		return commandTable;
-	}
-
-	static bool HandleBotAdd(ChatHandler* handler, const char* args)
-	{
-		uint32 id = 0;
-		char* battleid_str = strtok((char*)args, " ");
-		if (!battleid_str)
-		{
-			sMybot->LoginPlayerBot(1);
-			return true;
-		}
-
-		id = atoi(battleid_str);
-
-		sMybot->LoginPlayerBot(id);
-
-		return true;
 	}
 
     static bool MaxCmd(ChatHandler* handler, const char* args)
@@ -296,7 +279,13 @@ public:
 
     static bool OnlineCmd(ChatHandler* handler, const char* args)
     {
-		sPlayerBotMgr->AllPlayerBotRandomLogin(args[0] == '\0' ? nullptr : args);
+		sPlayerBotMgr->AllPlayerBotRandomLogin(args);
+        return true;
+    }
+
+    static bool OutlineCmd(ChatHandler* handler, const char* args)
+    {
+        sPlayerBotMgr->AllPlayerBotLogout();
         return true;
     }
 };

@@ -272,6 +272,12 @@ void PlayerBotSession::CastSchedule(uint32 diff)
 
 bool PlayerBotSession::ProcessOnline(BotGlobleSchedule& schedule)
 {
+	if (sPlayerBotMgr->m_MaxOnlineBot <= sPlayerBotMgr->m_BotOnlineCount)
+	{
+		LogoutPlayer(false, "playerbot max");
+		return true;
+	}
+
 	if (schedule.parameter1 <= 0)
 		return true;
 	if (PlayerLoading())
@@ -307,6 +313,12 @@ bool PlayerBotSession::ProcessOnline(BotGlobleSchedule& schedule)
 
 bool PlayerBotSession::ProcessOnlineByGUID(BotGlobleSchedule& schedule)
 {
+    if (sPlayerBotMgr->m_MaxOnlineBot <= sPlayerBotMgr->m_BotOnlineCount)
+    {
+        LogoutPlayer(false, "playerbot max");
+        return true;
+    }
+
 	if (schedule.playerGUID.IsEmpty())
 		return true;
 	if (PlayerLoading())
@@ -411,7 +423,7 @@ bool PlayerBotSession::ProcessInBGQueue(BotGlobleSchedule& schedule)
 	WorldPacket cmd(CMSG_BATTLEMASTER_JOIN);
 	WorldPackets::Battleground::Join packet(std::move(cmd));
 	packet.QueueID = MS::Battlegrounds::QueueOffsets::Battleground + MS::Battlegrounds::BattlegroundTypeId::BattlegroundRandom;
-	packet.RolesMask = 0x14u;
+	packet.RolesMask = 14;
 	HandleBattlemasterJoin(packet);
 	return false;
 }
@@ -429,15 +441,7 @@ bool PlayerBotSession::ProcessOutBGQueue(BotGlobleSchedule& schedule)
 	if (!player->IsInWorld() || player->InBattleground() || player->InArena() || !player->InBattlegroundQueue() || player->GetMap()->IsDungeon())
 		return true;
 
-	WorldPackets::LFG::RideTicket ticket;
-	ticket.RequesterGuid = player->GetGUID();
-	ticket.Id = MS::Battlegrounds::BattlegroundQueueTypeId::BattlegroundWarsongGulch;
-
-	WorldPacket cmd(CMSG_BATTLEFIELD_PORT);
-	cmd << ticket;
-	cmd.WriteBit(true);
-	WorldPackets::Battleground::Port packet(std::move(cmd));
-	HandleBattleFieldPort(packet);
+	LogoutPlayer(false, "playerbot");
 	return false;
 }
 
@@ -530,30 +534,17 @@ bool PlayerBotSession::ProcessInAAQueue(BotGlobleSchedule& schedule)
 		return false;
 	if (player->InBattlegroundQueue())
 		return true;
-	if (player->HasAura(26013) || player->InBattleground() || player->InArena() || player->GetMap()->IsDungeon() || player->isInCombat() || player->getLevel() != 80)
+	if (player->HasAura(26013) || player->InBattleground() || player->InArena() || player->GetMap()->IsDungeon())
 	{
 		ClearAllSchedule();
 		return false;
 	}
 
-	Battleground* bg = sBattlegroundMgr->GetBattlegroundTemplate(BattlegroundTypeId(schedule.parameter1));
-	if (!bg)
-	{
-		ClearAllSchedule();
-		return false;
-	}
-	PVPDifficultyEntry const* bracketEntry = DB2Manager::GetBattlegroundBracketByLevel(bg->GetMapId(), player->getLevel());
-	if (!bracketEntry)
-	{
-		ClearAllSchedule();
-		return false;
-	}
-
-	WorldPacket packet(CMSG_BATTLEMASTER_JOIN_ARENA);
-    packet << (uint8)0;
-    packet << (uint8)0;
-	WorldPackets::Battleground::JoinArena cmd(std::move(packet));
-	HandleBattlemasterJoinArena(cmd);
+	WorldPacket packet(CMSG_BATTLEMASTER_JOIN_SKIRMISH);
+	WorldPackets::Battleground::JoinSkirmish cmd(std::move(packet));
+	cmd.RolesMask = schedule.parameter1;
+	cmd.Bracket = schedule.parameter2;
+	HandleJoinSkirmish(cmd);
 	return false;
 }
 
@@ -570,27 +561,8 @@ bool PlayerBotSession::ProcessOutAAQueue(BotGlobleSchedule& schedule)
 	if (!player->IsInWorld() || player->InBattleground() || player->InArena() || !player->InBattlegroundQueue() || player->GetMap()->IsDungeon())
 		return true;
 
-    //uint8 un8 = 0;
-    //uint16 un16 = 0;
-    //WorldPacket opcode(1);
-    //opcode << uint8(schedule.parameter3);
-    //opcode << uint8(schedule.parameter2);
-    //opcode << uint32(schedule.parameter1);
-    //opcode << un16;
-    //opcode << un8;
-    //HandleBattleFieldPort(opcode);
-
-    WorldPackets::LFG::RideTicket ticket;
-    ticket.RequesterGuid = player->GetGUID();
-    ticket.Id = MS::Battlegrounds::BattlegroundQueueTypeId::BattlegroundWarsongGulch;
-
-    WorldPacket cmd(CMSG_BATTLEFIELD_PORT);
-    cmd << ticket;
-    cmd.WriteBit(true);
-    WorldPackets::Battleground::Port packet(std::move(cmd));
-    HandleBattleFieldPort(packet);
-    //HandleWorldPortAck();
-	return false;
+	LogoutPlayer(false, "playerbot");
+	return true;
 }
 
 bool PlayerBotSession::ProcessEnterAA(BotGlobleSchedule& schedule)
@@ -605,7 +577,7 @@ bool PlayerBotSession::ProcessEnterAA(BotGlobleSchedule& schedule)
 	}
 	if (!player->IsInWorld())
 		return false;
-	if (player->GetMap()->IsDungeon() || player->isInCombat() || player->getLevel() != 80)
+	if (player->GetMap()->IsDungeon())
 	{
 		BotGlobleSchedule schedule1(BotGlobleScheduleType::BGSType_OutAAQueue, 0);
 		schedule1.parameter1 = schedule.parameter1;
@@ -628,24 +600,15 @@ bool PlayerBotSession::ProcessEnterAA(BotGlobleSchedule& schedule)
 			if (player->IsInvitedForBattlegroundQueueType(bgQueueTypeId))
 			{
 				PlayerBotMgr::SwitchPlayerBotAI(player, PlayerBotAIType::PBAIT_ARENA, true);
-				//WorldPacket opcode(1);
-				//opcode << uint8(schedule.parameter3);
-				//opcode << uint8(schedule.parameter2);
-				//opcode << uint32(schedule.parameter1);
-				//opcode << uint16(0x1F90);
-				//opcode << uint8(1);
-				//HandleBattleFieldPortOpcode(opcode);
-				//HandleMoveWorldportAckOpcode();
-                WorldPackets::LFG::RideTicket ticket;
-                ticket.RequesterGuid = player->GetGUID();
-                ticket.Id = MS::Battlegrounds::BattlegroundQueueTypeId::BattlegroundWarsongGulch;
 
                 WorldPacket cmd(CMSG_BATTLEFIELD_PORT);
-                cmd << ticket;
-                cmd.WriteBit(true);
                 WorldPackets::Battleground::Port packet(std::move(cmd));
+                packet.Ticket.Id = schedule.parameter1;
+                packet.Ticket.RequesterGuid = schedule.playerGUID;
+                packet.Ticket.Type = WorldPackets::LFG::RideType::Battlegrounds;
+                packet.Ticket.Time = time(0);
+                packet.AcceptedInvite = true;
                 HandleBattleFieldPort(packet);
-                //HandleWorldPortAck();
 				break;
 			}
 			else
