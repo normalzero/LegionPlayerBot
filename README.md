@@ -10,6 +10,7 @@ Known bugs:
 Known fix done:
 1. playerbots join arena opcode need be implemented.
 2. db sql involved playerbot.
+3. common.lib for vmap collision calculation.
 
 Known settings:
 1. playerbot max count set to 10 in bot mgr
