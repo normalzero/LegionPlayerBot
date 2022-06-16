@@ -6,6 +6,7 @@ LegionCore with playerbot embedding
 Known bugs:
 1. playerbots don't find path in BG aggressively, just passive now.
 2. db is lack except playerbot part. you can import a default db version.
+3. BotGroupAI work not completely.
 
 Known fix done:
 1. playerbots join arena opcode need be implemented.
