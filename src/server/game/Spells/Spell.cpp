@@ -8525,7 +8525,7 @@ SpellCastResult Spell::CheckItems()
     // if not item target then required item must be equipped
     else
     {
-        if (m_caster->IsPlayer() && !m_caster->IsPlayerBot() || m_caster->getClass() != Classes::CLASS_ROGUE && !m_caster->ToPlayer()->HasItemFitToSpellRequirements(m_spellInfo))
+        if (m_caster->IsPlayer() && (!m_caster->IsPlayerBot() || m_caster->getClass() != Classes::CLASS_ROGUE) && !m_caster->ToPlayer()->HasItemFitToSpellRequirements(m_spellInfo))
             return SPELL_FAILED_EQUIPPED_ITEM_CLASS;
     }
 
