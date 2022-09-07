@@ -144,8 +144,12 @@ void EffectMovementGenerator::Finalize(Unit &unit)
 
     unit.ClearUnitState(UNIT_STATE_ROAMING | UNIT_STATE_ROAMING_MOVE);
 
-    if (((Creature&)unit).AI())
-        ((Creature&)unit).AI()->MovementInform(EFFECT_MOTION_TYPE, m_Id);
+    Creature* creature = unit.ToCreature();
+    if (creature == nullptr)
+        return;
+
+    if (creature->AI())
+        creature->AI()->MovementInform(EFFECT_MOTION_TYPE, m_Id);
     if (!unit.GetTransport())
         if (unit.IsPlayer() && unit.IsInWorld())
             unit.UpdatePosition(i_x, i_y, i_z, unit.GetOrientation(), false);
